@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("user")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  watches Watch[]
+
+  @@map("users")
+}
+
+model Source {
+  id            String    @id @default(uuid())
+  name          String    @unique
+  type          String
+  config        Json      @default("{}")
+  enabled       Boolean   @default(true)
+  lastScrapedAt DateTime? @map("last_scraped_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  rawPosts RawPost[]
+
+  @@map("sources")
+}
+
+model RawPost {
+  id          String    @id @default(uuid())
+  sourceId    String    @map("source_id")
+  externalId  String    @map("external_id")
+  title       String
+  body        String?   @db.Text
+  author      String?
+  url         String?
+  metadata    Json      @default("{}")
+  publishedAt DateTime? @map("published_at")
+  scrapedAt   DateTime  @default(now()) @map("scraped_at")
+  processed   Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  source  Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  signals Signal[]
+
+  @@unique([sourceId, externalId])
+  @@index([sourceId])
+  @@index([processed])
+  @@index([publishedAt])
+  @@map("raw_posts")
+}
+
+model Signal {
+  id           String @id @default(uuid())
+  rawPostId    String? @map("raw_post_id")
+  type         String
+  title        String
+  content      String @db.Text
+  confidence   Float  @default(0)
+  momentum     Float  @default(0)
+  mentionCount Int    @default(1) @map("mention_count")
+  metadata     Json   @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  rawPost       RawPost?            @relation(fields: [rawPostId], references: [id], onDelete: SetNull)
+  opportunities SignalOpportunity[]
+
+  @@index([type])
+  @@index([momentum])
+  @@index([confidence])
+  @@map("signals")
+}
+
+model Opportunity {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  category    String
+  status      String   @default("identified")
+  score       Float    @default(0)
+  momentum    Float    @default(0)
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  signals        SignalOpportunity[]
+  trendSnapshots TrendSnapshot[]
+
+  @@index([status])
+  @@index([score])
+  @@index([momentum])
+  @@map("opportunities")
+}
+
+model SignalOpportunity {
+  id            String   @id @default(uuid())
+  signalId      String   @map("signal_id")
+  opportunityId String   @map("opportunity_id")
+  weight        Float    @default(1.0)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  signal      Signal      @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@unique([signalId, opportunityId])
+  @@map("signal_opportunities")
+}
+
+model TrendSnapshot {
+  id            String   @id @default(uuid())
+  opportunityId String   @map("opportunity_id")
+  momentum      Float
+  score         Float
+  mentionCount  Int      @map("mention_count")
+  metadata      Json     @default("{}")
+  snapshotDate  DateTime @default(now()) @map("snapshot_date")
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId, snapshotDate])
+  @@map("trend_snapshots")
+}
+
+model Watch {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String
+  target    String
+  config    Json     @default("{}")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("watches")
+}

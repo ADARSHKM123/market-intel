@@ -1,0 +1,22 @@
+{
+  "name": "market-intel",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:nlp\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:nlp": "cd nlp-service && .venv/Scripts/python -m uvicorn main:app --reload --port 8001",
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "db:seed": "npm run db:seed --workspace=backend",
+    "db:reset": "npm run db:reset --workspace=backend",
+    "setup": "npm install && cd nlp-service && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
